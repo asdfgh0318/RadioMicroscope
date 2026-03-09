@@ -53,5 +53,42 @@ USB-C provides up to 500mA (USB 2.0) or 900mA (USB 3.0). Adequate for MVP. Batte
 - **Azimuth (360-mod)**: Continuous rotation. PWM controls speed/direction, not angle. Center ~1500μs = stop. Trim adjustable via web UI (±50μs).
 - **Elevation (standard)**: Position control 0-180°. Standard PWM servo operation.
 
-## Plan
-*(to be agreed upon)*
+## MVP Implementation (completed 2026-03-09)
+
+### Architecture
+- **WiFi**: `WIFI_AP_STA` mode — AP ("RadioMicroscope") for web UI, STA for RSSI scanning
+- **Web server**: AsyncWebServer + AsyncWebSocket at `/ws`
+- **Web UI**: Dark theme, mobile-first, single HTML in PROGMEM (`include/web_ui.h`)
+- **Sensors**: MPU-6050 (pitch/roll), async WiFi scan every 5s (non-blocking)
+- **Control**: WebSocket JSON protocol, 20Hz throttled
+
+### WebSocket Protocol
+**Client → ESP32:** `{"type":"control","azimuth":N,"elevation":N,"trim":N}`
+- azimuth: -100 (CCW) to +100 (CW), 0=stop
+- elevation: 0-180 degrees
+- trim: ±50μs azimuth center offset
+
+**ESP32 → Client (200ms):** `{"type":"sensors","pitch":N,"roll":N,"networks":[...]}`
+
+### Servo Control
+- **Azimuth**: `writeMicroseconds(1500 + trim + speed*500/100)`, dead zone ±5%
+- **Elevation**: `write(angle)` direct 0-180 mapping
+- Safety watchdog: azimuth stops if no WS message for 2s
+
+### File Structure
+```
+platformio.ini          # PlatformIO config for XIAO ESP32S3
+src/main.cpp            # All firmware logic
+include/web_ui.h        # HTML/CSS/JS as PROGMEM string
+```
+
+### Libraries
+ESP32Servo, ESPAsyncWebServer, AsyncTCP, ArduinoJson, Adafruit MPU6050
+
+---
+
+## Future Phases
+- **Phase 2**: Automated scan sweep, RSSI heatmap / 3D plot (Az vs El vs dBm)
+- **Phase 3**: Lock/follow mode — track strongest RSSI, rescan on loss
+- **Phase 4**: BN-880 GPS + compass for true heading, encoder for azimuth feedback
+- **Phase 5**: Camera stream (OV2640), audio, battery power, touch pin wake
