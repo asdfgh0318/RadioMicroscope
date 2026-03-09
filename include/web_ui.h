@@ -34,11 +34,11 @@ input[type=range]::-moz-range-thumb{width:44px;height:44px;border-radius:50%;bac
 <header><h1>RADIOMICROSCOPE</h1><span class="status" id="conn">Disconnected</span></header>
 <section class="panel"><h2>RSSI MONITOR</h2><ul id="rssi-list"><li style="color:#888">Waiting for data&hellip;</li></ul></section>
 <section class="panel"><h2>ORIENTATION</h2><div class="imu-row"><div><label>PITCH</label><br><span id="pitch">--</span></div><div><label>ROLL</label><br><span id="roll">--</span></div></div></section>
-<section class="panel"><h2>AZIMUTH (SPEED)</h2><div class="ctrl"><div class="ctrl-header"><span class="range-labels">&#9664; CCW</span><span class="ctrl-val" id="az-val">0%</span><span class="range-labels">CW &#9654;</span></div><input type="range" min="-100" max="100" value="0" id="az"><div class="trim-row">Trim: <input type="number" min="-50" max="50" value="0" id="trim"> &micro;s</div></div></section>
+<section class="panel"><h2>AZIMUTH (SPEED)</h2><div class="ctrl"><div class="ctrl-header"><span class="range-labels">&#9664; CCW</span><span class="ctrl-val" id="az-val">0%</span><span class="range-labels">CW &#9654;</span></div><input type="range" min="-100" max="100" value="0" id="az"><div class="trim-row">Trim: <input type="number" min="-500" max="500" value="500" id="trim"> &micro;s</div></div></section>
 <section class="panel"><h2>ELEVATION (ANGLE)</h2><div class="ctrl"><div class="ctrl-header"><span></span><span class="ctrl-val" id="el-val">90&deg;</span></div><input type="range" min="0" max="180" value="90" id="el"><div class="range-labels"><span>0&deg;</span><span>180&deg;</span></div></div></section>
 <script>
 var ws,az=document.getElementById('az'),el=document.getElementById('el'),trim=document.getElementById('trim'),conn=document.getElementById('conn');
-trim.value=localStorage.getItem('azTrim')||0;
+trim.value=localStorage.getItem('azTrim')||500;
 function connect(){
 ws=new WebSocket('ws://'+location.host+'/ws');
 ws.onopen=function(){conn.textContent='Connected';conn.className='status on'};

@@ -33,7 +33,7 @@ bool mpuReady = false;
 float pitch = 0, roll = 0;
 int azimuthSpeed = 0;     // -100 to +100
 int elevationAngle = 90;  // 0-180
-int azimuthTrim = 0;      // ±50 μs
+int azimuthTrim = 500;    // μs offset for azimuth servo center calibration
 
 unsigned long lastIMURead = 0;
 unsigned long lastWsPush = 0;
@@ -169,7 +169,7 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client,
                     elevationAngle = constrain((int)doc["elevation"], 0, 180);
                 }
                 if (doc["trim"].is<int>()) {
-                    azimuthTrim = constrain((int)doc["trim"], -50, 50);
+                    azimuthTrim = constrain((int)doc["trim"], -500, 500);
                 }
 
                 setAzimuth(azimuthSpeed, azimuthTrim);
