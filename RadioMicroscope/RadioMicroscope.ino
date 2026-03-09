@@ -1,4 +1,24 @@
-#include <Arduino.h>
+/*
+ * RadioMicroscope — 2-DOF WiFi Signal Tracker
+ * Board: XIAO ESP32S3 Sense
+ *
+ * Arduino IDE Setup:
+ *   1. File > Preferences > Additional Board Manager URLs:
+ *      https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+ *   2. Tools > Board Manager > Install "esp32" by Espressif
+ *   3. Tools > Board > esp32 > "XIAO_ESP32S3"
+ *   4. Tools > USB CDC On Boot > "Enabled"
+ *   5. Tools > PSRAM > "OPI PSRAM"
+ *   6. Install libraries via Sketch > Include Library > Manage Libraries:
+ *      - ESP32Servo
+ *      - ESPAsyncWebServer (by me-no-dev)
+ *      - AsyncTCP (by me-no-dev)
+ *      - ArduinoJson (by Benoit Blanchon)
+ *      - Adafruit MPU6050
+ *      - Adafruit Unified Sensor
+ *      - Adafruit BusIO
+ */
+
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
 #include <ESP32Servo.h>
@@ -10,16 +30,17 @@
 
 // === Configuration ===
 const char* AP_SSID = "RadioMicroscope";
-// Pin definitions (use symbolic names for XIAO ESP32S3)
+
+// Pin definitions — use symbolic names for XIAO ESP32S3
 #define SERVO_AZ_PIN D0   // GPIO1 - Azimuth (360-mod continuous rotation)
 #define SERVO_EL_PIN D1   // GPIO2 - Elevation (standard 0-180)
 // I2C uses default SDA=D4(GPIO5), SCL=D5(GPIO6)
 
 // Timing intervals (ms)
-#define IMU_READ_INTERVAL 100
-#define WS_PUSH_INTERVAL 200
-#define WIFI_SCAN_INTERVAL 5000
-#define WATCHDOG_TIMEOUT 2000
+#define IMU_READ_INTERVAL   100
+#define WS_PUSH_INTERVAL    200
+#define WIFI_SCAN_INTERVAL  5000
+#define WATCHDOG_TIMEOUT    2000
 
 // === Global Objects ===
 AsyncWebServer server(80);
@@ -58,7 +79,7 @@ void setup() {
     Serial.println("RadioMicroscope booting...");
 
     // I2C for MPU-6050
-    Wire.begin();  // Uses default SDA/SCL on XIAO ESP32S3
+    Wire.begin();
     if (mpu.begin()) {
         mpuReady = true;
         mpu.setAccelerometerRange(MPU6050_RANGE_2_G);
@@ -66,7 +87,7 @@ void setup() {
         mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
         Serial.println("MPU-6050 initialized");
     } else {
-        Serial.println("MPU-6050 not found — continuing without IMU");
+        Serial.println("MPU-6050 not found - continuing without IMU");
     }
 
     // Servos
@@ -92,7 +113,7 @@ void setup() {
     });
 
     server.begin();
-    Serial.println("Web server started");
+    Serial.println("Web server started at 192.168.4.1");
 
     // First WiFi scan
     WiFi.scanNetworks(true);
@@ -104,7 +125,7 @@ void loop() {
     ws.cleanupClients();
     unsigned long now = millis();
 
-    // Read IMU
+    // Read IMU every 100ms
     if (mpuReady && now - lastIMURead >= IMU_READ_INTERVAL) {
         lastIMURead = now;
         readIMU();
@@ -117,13 +138,13 @@ void loop() {
         WiFi.scanDelete();
     }
 
-    // Trigger new scan
+    // Trigger new scan every 5s
     if (scanResult == WIFI_SCAN_FAILED && now - lastScanTrigger >= WIFI_SCAN_INTERVAL) {
         WiFi.scanNetworks(true);
         lastScanTrigger = now;
     }
 
-    // Push sensor data via WebSocket
+    // Push sensor data via WebSocket every 200ms
     if (now - lastWsPush >= WS_PUSH_INTERVAL) {
         lastWsPush = now;
         if (ws.count() > 0) {
@@ -150,7 +171,6 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client,
     } else if (type == WS_EVT_DATA) {
         AwsFrameInfo *info = (AwsFrameInfo*)arg;
         if (info->opcode == WS_TEXT) {
-            // Parse JSON control message
             JsonDocument doc;
             DeserializationError err = deserializeJson(doc, data, len);
             if (err) {
@@ -184,7 +204,7 @@ void setAzimuth(int speedPercent, int trimUs) {
     int center = 1500 + trimUs;
     int pulse;
     if (abs(speedPercent) < 5) {
-        pulse = center;  // dead zone — full stop
+        pulse = center;  // dead zone - full stop
     } else {
         pulse = center + (speedPercent * 500 / 100);
     }
@@ -250,7 +270,6 @@ String buildSensorJSON() {
     doc["pitch"] = round(pitch * 10.0) / 10.0;
     doc["roll"] = round(roll * 10.0) / 10.0;
 
-    // Parse cached RSSI into the document
     JsonDocument rssiDoc;
     deserializeJson(rssiDoc, cachedRssiJson);
     doc["networks"] = rssiDoc.as<JsonArray>();
