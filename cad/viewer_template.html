@@ -1,0 +1,331 @@
+<title>{{TITLE}}</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one large drawing stage with its controls directly beneath, then two reference columns. */
+:root {
+  --bg: #eef1f4;
+  --surface: #ffffff;
+  --stage: #dfe5ea;
+  --ink: #17212b;
+  --muted: #5b6875;
+  --line: #c9d2da;
+  --accent: #1463c4;
+  --accent-ink: #ffffff;
+  --warn: #9a5b00;
+  --display: "Space Grotesk", "Inter", system-ui, sans-serif;
+  --body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10161c; --surface: #18212a; --stage: #0b1015; --ink: #e6ebf0; --muted: #94a2b0;
+    --line: #2b3742; --accent: #5aa6ff; --accent-ink: #08121c; --warn: #e0a84a; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10161c; --surface: #18212a; --stage: #0b1015; --ink: #e6ebf0; --muted: #94a2b0;
+  --line: #2b3742; --accent: #5aa6ff; --accent-ink: #08121c; --warn: #e0a84a; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--body); }
+.wrap {
+  max-width: 1080px; margin: 0 auto; padding-block: 28px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 20px;
+}
+h1 { font: 600 28px/1.15 var(--display); margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+h2 { font: 600 12px/1.3 var(--body); letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+p { margin: 0; max-width: 65ch; }
+.lede { color: var(--muted); margin-top: 6px; }
+.draft { color: var(--warn); font-weight: 600; }
+
+.stage { position: relative; background: var(--stage); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.stage canvas { display: block; width: 100%; height: min(62vh, 560px); min-height: 300px; touch-action: none; cursor: grab; }
+.stage canvas:active { cursor: grabbing; }
+.readout {
+  position: absolute; left: 12px; top: 10px; font: 500 13px/1.4 var(--mono); color: var(--ink);
+  font-variant-numeric: tabular-nums; pointer-events: none;
+}
+.hint { position: absolute; right: 12px; bottom: 8px; font-size: 12px; color: var(--muted); pointer-events: none; }
+.fail { padding: 40px 16px; text-align: center; color: var(--muted); }
+
+.controls { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: center; }
+.slider { display: flex; align-items: center; gap: 10px; flex: 1 1 260px; min-width: 0; }
+.slider label { font: 500 13px var(--body); width: 78px; flex: none; }
+.slider input { flex: 1; min-width: 0; accent-color: var(--accent); }
+.slider output { font: 500 13px var(--mono); width: 48px; text-align: right; font-variant-numeric: tabular-nums; flex: none; }
+.buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+button {
+  font: 500 13px var(--body); color: var(--ink); background: var(--surface); border: 1px solid var(--line);
+  border-radius: 5px; padding: 8px 14px; cursor: pointer; min-height: 36px;
+}
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 28px; }
+.cols > div { min-width: 0; }
+ul.legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+ul.legend li { display: grid; grid-template-columns: 16px 1fr; gap: 10px; align-items: start; }
+ul.legend i { width: 14px; height: 14px; border-radius: 3px; margin-top: 4px; border: 1px solid var(--line); }
+ul.legend span { color: var(--muted); }
+ul.legend strong { font-weight: 600; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+td { padding: 6px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+td:last-child { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; padding-left: 12px; }
+.notes { display: grid; gap: 8px; margin-top: 14px; color: var(--muted); font-size: 14px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>{{HEADING}}</h1>
+    <p class="lede"><span class="draft">Working draft.</span> {{LEDE}}</p>
+  </header>
+
+  <div class="stage" id="stage">
+    <canvas id="view" aria-label="3D model of the pan/tilt head"></canvas>
+    <div class="readout" id="readout"></div>
+    <div class="hint">blue line = where the antenna points</div>
+  </div>
+
+  <div class="controls">
+    <div class="slider"><label for="az">Azimuth</label><input id="az" type="range" min="-175" max="175" step="1" value="25"><output id="azv" for="az"></output></div>
+    <div class="slider"><label for="el">Elevation</label><input id="el" type="range" min="-15" max="95" step="1" value="30"><output id="elv" for="el"></output></div>
+    <div class="buttons">
+      <button class="primary" id="sweep" type="button">Play scan</button>
+      <button id="reset" type="button">Reset view</button>
+    </div>
+  </div>
+
+  <div class="cols">
+    <div>
+      <h2>What you are looking at</h2>
+      <ul class="legend" id="legend"></ul>
+    </div>
+    <div>
+      <h2>Key dimensions</h2>
+      <table id="dims"></table>
+      <div class="notes" id="notes">
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+'use strict';
+const MESHES = /*MESHES*/[];
+const DIMS = /*DIMS*/{};
+
+const COLOURS = {
+  print: 0xd6d9d3, motor: 0x2a2d34, rotor: 0x4b5466, pcb: 0x1f7a5a, pcbdark: 0x1e2128,
+  pcbblue: 0x2a3f9e, metal: 0xb4bac2, antenna: 0xf3f5f8, cable: 0xc88f1f,
+};
+const META = /*META*/{};
+const LEGEND = META.legend;
+const $ = id => document.getElementById(id);
+const rad = d => d * Math.PI / 180;
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+META.notes.forEach(text => {
+  const p = document.createElement('p');
+  p.textContent = text;
+  $('notes').appendChild(p);
+});
+
+// ---- legend and dimension table ------------------------------------------
+LEGEND.forEach(([colour, name, detail]) => {
+  const li = document.createElement('li');
+  const sw = document.createElement('i');
+  sw.style.background = '#' + COLOURS[colour].toString(16).padStart(6, '0');
+  const tx = document.createElement('div');
+  const b = document.createElement('strong');
+  b.textContent = name;
+  const sp = document.createElement('span');
+  sp.textContent = ' — ' + detail;
+  tx.append(b, sp);
+  li.append(sw, tx);
+  $('legend').appendChild(li);
+});
+[
+  ['Height of the head', DIMS.height, 'mm'],
+  ...(DIMS.grip ? [['Grip below the base', DIMS.grip, 'mm']] : []),
+  ['Width across the fork', DIMS.width, 'mm'],
+  ['Base diameter', DIMS.base_d, 'mm'],
+  ['Tilt axis above the table', DIMS.tilt_z, 'mm'],
+  ['Antenna, width × height × depth', `${DIMS.ant_w} × ${DIMS.ant_h} × ${DIMS.ant_t}`, 'mm'],
+  ['Pan travel', '−175 to +175', '°'],
+  ['Tilt travel', '−15 to +95', '°'],
+].forEach(([k, v, u]) => {
+  const tr = document.createElement('tr');
+  const a = document.createElement('td'), b = document.createElement('td');
+  a.textContent = k;
+  b.textContent = (typeof v === 'number' ? v.toFixed(0) : v) + ' ' + u;
+  tr.append(a, b);
+  $('dims').appendChild(tr);
+});
+
+// ---- scene ----------------------------------------------------------------
+const canvas = $('view');
+let renderer;
+try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true }); } catch (e) { renderer = null; }
+
+if (!renderer) {
+  const msg = document.createElement('div');
+  msg.className = 'fail';
+  msg.textContent = 'This browser could not start 3D graphics, so the model cannot be shown here.';
+  $('stage').replaceChildren(msg);
+} else {
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(32, 1, 10, 5000);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x8c949c, 0.85));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.75);
+  sun.position.set(300, 500, 400);
+  scene.add(sun);
+
+  // The model is Z-up; three.js is Y-up.
+  const root = new THREE.Group();
+  root.rotation.x = -Math.PI / 2;
+  scene.add(root);
+  const frames = { static: root, yoke: new THREE.Group(), cradle: new THREE.Group() };
+  frames.yoke.position.z = DIMS.deck_z;
+  frames.cradle.position.z = DIMS.tilt_above_deck;
+  root.add(frames.yoke);
+  frames.yoke.add(frames.cradle);
+
+  MESHES.forEach(m => {
+    const bin = atob(m.data);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(bytes.buffer), 3));
+    geo.computeVertexNormals();
+    const mat = new THREE.MeshStandardMaterial({
+      color: COLOURS[m.colour], flatShading: true,
+      roughness: m.colour === 'metal' ? 0.4 : 0.8, metalness: m.colour === 'metal' ? 0.6 : (m.colour === 'rotor' ? 0.3 : 0.05),
+    });
+    frames[m.frame].add(new THREE.Mesh(geo, mat));
+  });
+
+  // Boresight: where the antenna is pointing.
+  const beamMat = new THREE.LineBasicMaterial({ color: 0x1463c4 });
+  const beam = new THREE.Line(new THREE.BufferGeometry().setFromPoints(
+    [new THREE.Vector3(0, DIMS.ant_t - (DIMS.ant_off || 0), 0), new THREE.Vector3(0, DIMS.height * 2, 0)]), beamMat);
+  frames.cradle.add(beam);
+
+  // ---- orbit camera -------------------------------------------------------
+  // Largest extent of the model: top of the head to the bottom of the grip, or its width.
+  const SPAN = Math.max(DIMS.height + DIMS.grip, DIMS.width, DIMS.ant_w);
+  const HOME = { theta: 0.75, phi: 1.15, dist: SPAN * 2.7 };
+  const view = Object.assign({}, HOME);
+  const target = new THREE.Vector3(0, (DIMS.height - DIMS.grip) / 2, 0);
+  let dirty = true;
+
+  function placeCamera() {
+    view.phi = Math.min(Math.max(view.phi, 0.12), 1.55);
+    view.dist = Math.min(Math.max(view.dist, SPAN * 0.9), SPAN * 14);
+    camera.position.set(
+      target.x + view.dist * Math.sin(view.phi) * Math.sin(view.theta),
+      target.y + view.dist * Math.cos(view.phi),
+      target.z + view.dist * Math.sin(view.phi) * Math.cos(view.theta));
+    camera.lookAt(target);
+  }
+
+  function resize() {
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    if (!w || !h) return;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    dirty = true;
+  }
+
+  function theme() {
+    renderer.setClearColor(new THREE.Color(css('--stage') || '#dfe5ea'));
+    beamMat.color.set(css('--accent') || '#1463c4');
+    dirty = true;
+  }
+
+  const pointers = new Map();
+  let pinch = 0;
+  canvas.addEventListener('pointerdown', e => {
+    canvas.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    pinch = 0;
+  });
+  canvas.addEventListener('pointermove', e => {
+    const p = pointers.get(e.pointerId);
+    if (!p) return;
+    if (pointers.size === 1) {
+      view.theta -= (e.clientX - p.x) * 0.008;
+      view.phi -= (e.clientY - p.y) * 0.008;
+    }
+    p.x = e.clientX; p.y = e.clientY;
+    if (pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      const d = Math.hypot(a.x - b.x, a.y - b.y);
+      if (pinch) view.dist *= pinch / d;
+      pinch = d;
+    }
+    dirty = true;
+  });
+  const release = e => { pointers.delete(e.pointerId); pinch = 0; };
+  canvas.addEventListener('pointerup', release);
+  canvas.addEventListener('pointercancel', release);
+  canvas.addEventListener('wheel', e => {
+    e.preventDefault();
+    view.dist *= Math.exp(e.deltaY * 0.0012);
+    dirty = true;
+  }, { passive: false });
+
+  // ---- pointing -----------------------------------------------------------
+  const azIn = $('az'), elIn = $('el');
+  function pose() {
+    const az = +azIn.value, el = +elIn.value;
+    frames.yoke.rotation.z = -rad(az);
+    frames.cradle.rotation.x = rad(el);
+    $('azv').textContent = az + '°';
+    $('elv').textContent = el + '°';
+    $('readout').textContent = `az ${String(az).padStart(4)}°   el ${String(el).padStart(3)}°`;
+    dirty = true;
+  }
+  azIn.addEventListener('input', () => { stopSweep(); pose(); });
+  elIn.addEventListener('input', () => { stopSweep(); pose(); });
+
+  // "Play scan" walks the same serpentine raster the firmware uses.
+  let sweeping = false, row = 0, dirn = 1;
+  function stopSweep() { sweeping = false; $('sweep').textContent = 'Play scan'; }
+  $('sweep').addEventListener('click', () => {
+    if (sweeping) return stopSweep();
+    sweeping = true; row = 0; dirn = 1;
+    azIn.value = -175; elIn.value = 0;
+    $('sweep').textContent = 'Stop scan';
+    pose();
+  });
+  function stepSweep() {
+    let az = +azIn.value + dirn * 4;
+    if (az > 175 || az < -175) {
+      az = Math.max(-175, Math.min(175, az));
+      row++; dirn = -dirn;
+      if (row > 6) { stopSweep(); return; }
+      elIn.value = row * 15;
+    }
+    azIn.value = az;
+    pose();
+  }
+  $('reset').addEventListener('click', () => { Object.assign(view, HOME); dirty = true; });
+
+  new ResizeObserver(resize).observe(canvas);
+  new MutationObserver(theme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', theme);
+
+  function frame() {
+    if (sweeping) stepSweep();
+    if (dirty) { dirty = false; placeCamera(); renderer.render(scene, camera); }
+    requestAnimationFrame(frame);
+  }
+  resize(); theme(); pose(); frame();
+}
+</script>

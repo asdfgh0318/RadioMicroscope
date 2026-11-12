@@ -1,117 +1,86 @@
-# RadioMicroscope
+# RadioMicroscope v2
 
-A 2-DOF WiFi signal tracker built on the **Seeed XIAO ESP32S3 Sense**. A directional antenna and camera mount on a pan/tilt gimbal controlled via a web interface over WiFi. The device scans for WiFi networks and maps signal strength (RSSI) against heading and elevation.
+<p align="center"><img src="docs/img/desk.png" width="520" alt="3D model of the desktop RadioMicroscope: a round base, a fork that turns on it, and an antenna cradle that tilts between the fork arms"></p>
 
-<p align="center">
-  <img src="docs/prototype.jpeg" width="300" alt="RadioMicroscope prototype">
-</p>
+A desk-sized instrument that points a directional antenna with a two-axis head, records how strong a chosen radio transmitter is in every direction, draws that as a map of the sky around it, and then keeps the antenna locked on the transmitter. A camera looks along the antenna so the radio picture can be compared with what is there.
 
-## Hardware
+**Status, 2026-11-11: designed and written, not yet built.** The algorithms pass 133 checks on a PC, and the tool that locates a transmitter from logged bearings passes its own test. The three firmware sketches compile against the ESP32 Arduino core (syntax and types only). Nothing has been linked, flashed or run on hardware, and the printed parts have not been printed. The v1 prototype is in [`archive/v1/`](archive/v1/); the brief for this redesign is [`1.md`](1.md).
 
-| Component | Pin | Protocol |
-|-----------|-----|----------|
-| Servo Azimuth (SG90, 360-mod) | D0 / GPIO1 | PWM |
-| Servo Elevation (SG90, standard) | D1 / GPIO2 | PWM |
-| MPU-6050 IMU | SDA (D4), SCL (D5) | I2C |
-| Directional Antenna | UFL connector | — |
-| Power | USB-C | 5V |
+## What it does
 
-### Bill of Materials
-- Seeed XIAO ESP32S3 Sense
-- 2x SG90 micro servo (one with 360-degree continuous rotation mod)
-- MPU-6050 accelerometer/gyroscope breakout
-- Directional WiFi antenna (UFL connector)
-- USB-C cable for power and programming
+- **Survey**: lists every Wi-Fi transmitter it can hear on 2.4 GHz and 5 GHz, with channel and strength.
+- **Scan**: sweeps the antenna over the hemisphere and maps the strength of one chosen transmitter by direction.
+- **Track**: holds the antenna on the transmitter by probing around it; if the signal is lost it scans again and locks on again.
+- **Look**: serves a control page over its own Wi-Fi network, with the map, a still camera view along the antenna, manual pointing and CSV export.
 
-## Features (MVP)
+## How it is built
 
-- **WiFi Access Point** — ESP32 creates "RadioMicroscope" network, no password
-- **Web control panel** at `192.168.4.1` — dark theme, mobile-friendly
-- **Azimuth control** — spring-loaded slider for continuous rotation speed/direction
-- **Elevation control** — slider for 0-180 degree positioning
-- **Trim calibration** — adjustable PWM center offset for azimuth servo (default 500μs)
-- **Live RSSI monitor** — top 5 visible WiFi networks with signal bars
-- **IMU readout** — pitch and roll from MPU-6050
-- **Safety watchdog** — azimuth auto-stops if connection drops for 2 seconds
+| Part | What | Why |
+|---|---|---|
+| Sensor radio | Seeed XIAO ESP32-C5 behind the antenna | The only dual-band (2.4 + 5 GHz) ESP32 board with an antenna socket that could be confirmed on sale in Poland, at 30,90 zł. It only listens. |
+| Brain | Seeed XIAO ESP32-S3 Sense (already owned) | Camera, control page, scan and tracking logic. Its own antenna serves the page, so measuring never pauses to talk to the browser. |
+| Motor controller | Classic ESP32 board, two SimpleFOC Mini drivers | Runs two brushless gimbal motors in closed-loop angle control. |
+| Motors | Two iFlight GM3506 with AS5048A encoders | Direct drive: silent, no backlash, and the encoder reports the true angle. |
+| Antenna | Maple Wireless 2.4 GHz 9 dBi patch, 90 × 80 × 10 mm | Light enough for small motors; a 5 GHz panel of the same size swaps onto the same cradle. |
+| Power | USB-C Power Delivery | Runs from a PD power bank or charger through one socket. |
 
-## Getting Started
+The head is about 154 mm wide and 144 mm tall on a 120 mm base. See [`docs/design.md`](docs/design.md) for the full design, [`docs/bom.md`](docs/bom.md) for the parts list with shops and prices, and [`docs/sourcing.md`](docs/sourcing.md) for every shop listing that was checked.
 
-### Arduino IDE
+## Targets
 
-1. Add ESP32 board URL in **File > Preferences > Additional Board Manager URLs**:
-   ```
-   https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
-   ```
+| Desktop | Handheld, 5.8 GHz | Long range, 2.4 GHz |
+|:---:|:---:|:---:|
+| <img src="docs/img/desk.png" width="260" alt="Desktop model"> | <img src="docs/img/handheld.png" width="260" alt="Handheld model on a grip"> | <img src="docs/img/longrange.png" width="260" alt="Long-range model with a large panel antenna"> |
+| 154 × 144 mm, 120 mm base | 81 × 104 mm plus a 115 mm grip | 269 × 262 mm, 160 mm base |
 
-2. Install **esp32** board package via **Tools > Board Manager**
+The pictures are renders of the OpenSCAD model in `cad/`, not photographs; nothing has been built yet. An interactive view of each is produced by `tools/build_viewer.py` into `build/`.
 
-3. Install libraries via **Sketch > Include Library > Manage Libraries**:
-   - `ESP32Servo`
-   - `ESPAsyncWebServer` (by mathieucarbou/me-no-dev)
-   - `AsyncTCP` (by mathieucarbou/me-no-dev)
-   - `ArduinoJson`
-   - `Adafruit MPU6050`
-   - `Adafruit Unified Sensor`
-   - `Adafruit BusIO`
+**Current focus: the desktop build.** It is the one to order and assemble first; [`docs/build-desktop.md`](docs/build-desktop.md) is the step-by-step guide.
 
-   > **Note:** The standard ESPAsyncWebServer from Arduino Library Manager may not compile with ESP32 Arduino Core v3.x. Use the [mathieucarbou fork](https://github.com/mathieucarbou/ESPAsyncWebServer) instead.
+1. **Desktop**: the build described above, for mapping and tracking Wi-Fi on 2.4 and 5 GHz.
+2. **Handheld**: a palm-sized head on a grip (81 × 104 mm plus the grip) that follows a drone's analog video transmitter on 5.8 GHz and keeps facing it while you move. See [`docs/palm-5g8.md`](docs/palm-5g8.md).
+3. **Video receiver (VRX)**: the handheld steers by an ESP32-C5 running the ESP-SDR firmware, which measures signal strength but gives no picture; an RX5808 module gives the picture for goggles and can steer the head too. Both are options in the brain firmware; wiring is in the same note.
+4. **Long range, 2.4 GHz**: the desk design with a 16 dBi panel antenna and larger motors, for locking onto a distant Wi-Fi network. See [`docs/long-range.md`](docs/long-range.md).
 
-4. Board settings:
-   - **Board:** XIAO_ESP32S3
-   - **USB CDC On Boot:** Enabled
-   - **PSRAM:** OPI PSRAM
+A unit carried on a drone was planned and is parked; the navigation code written for it (compass, IMU, logging, locating) is what lets the handheld hold its direction. See [`docs/navigation.md`](docs/navigation.md).
 
-5. Open `RadioMicroscope/RadioMicroscope.ino` and upload
+A bus-servo drivetrain (two Waveshare ST3215 servos, both verified in Polish shops) is kept as a build option: set `DRIVE_BRUSHLESS 0` in `firmware/brain/config.h` and leave out the motor controller.
 
-### arduino-cli
-
-```bash
-arduino-cli core install esp32:esp32
-arduino-cli lib install ESP32Servo ArduinoJson "Adafruit MPU6050" "Adafruit Unified Sensor" "Adafruit BusIO"
-arduino-cli config set library.enable_unsafe_install true
-arduino-cli lib install --git-url https://github.com/mathieucarbou/ESPAsyncWebServer
-arduino-cli lib install --git-url https://github.com/mathieucarbou/AsyncTCP
-
-arduino-cli compile --fqbn esp32:esp32:XIAO_ESP32S3:USBMode=hwcdc,CDCOnBoot=cdc RadioMicroscope/
-arduino-cli upload --fqbn esp32:esp32:XIAO_ESP32S3:USBMode=hwcdc,CDCOnBoot=cdc --port /dev/ttyACM0 RadioMicroscope/
-```
-
-## Usage
-
-1. Power the board via USB-C
-2. Connect your phone/laptop to WiFi network **"RadioMicroscope"**
-3. Open **192.168.4.1** in a browser
-4. Use the azimuth slider to rotate (hold to spin, release to stop)
-5. Use the elevation slider to tilt
-6. Adjust the trim value if the azimuth servo drifts when stopped (default: 500μs)
-7. Watch the RSSI monitor to see WiFi signal strengths change as you rotate
-
-## Project Structure
+## Repository
 
 ```
-RadioMicroscope/           # Arduino IDE sketch
-  RadioMicroscope.ino      # Firmware source
-  web_ui.h                 # Web UI (HTML/CSS/JS as PROGMEM)
-src/main.cpp               # PlatformIO firmware source (identical)
-include/web_ui.h           # PlatformIO web UI header
-platformio.ini             # PlatformIO build config
-plan.md                    # Project plan & hardware notes
-docs/                      # Photos and documentation
+1.md                  the brief for this redesign, verbatim
+lib/RMCore/           hardware-independent core: sky map, scan pattern, tracker,
+                      servo packets, serial links, GPS parser, attitude and
+                      bearing-crossing maths (header-only C++)
+tests/                PC tests of the core
+firmware/sensor/      ESP32-C5: listens and reports signal strength
+firmware/brain/       ESP32-S3: modes, control page, camera, drivetrain selection
+firmware/motion/      ESP32: brushless motor control
+web/index.html        the control page (embedded into the brain firmware)
+cad/                  OpenSCAD model, printable STL files, 3D viewer template
+tools/                page embedder, compile check, viewer builder, locate.py
+docs/                 design, parts list, sourcing record, long-range and handheld variants,
+                      navigation
+papers/               sources behind the design decisions, with extracts and reports
+archive/v1/           the first prototype, unchanged
 ```
 
-## Design Notes
+## Working with it
 
-<details>
-<summary>Original notebook sketches</summary>
+```
+make test     # 133 checks of the core plus the locate.py test; needs g++ and python3
+make check    # compile-check the three sketches with the installed ESP32 core
+make web      # regenerate the embedded control page
+make brain    # full build with arduino-cli (likewise: sensor, motion)
+python3 tools/build_viewer.py [desk|palm58|longrange24]   # rebuild the 3D view and printable parts
+```
 
-<img src="docs/notes-1.jpeg" width="400" alt="Notebook page 1">
-<img src="docs/notes-2.jpeg" width="400" alt="Notebook page 2">
+`make check` needs the ESP32 Arduino core 3.3.5 or newer in `~/.arduino15`, the ESPAsyncWebServer, AsyncTCP and ArduinoJson libraries, and the Simple FOC library (installed as `~/Arduino/libraries/Simple_FOC`, or pass `SIMPLEFOC=/path/to/Arduino-FOC`). It checks syntax and types only. A real build needs `arduino-cli`.
 
-</details>
+## What is not done
 
-## Roadmap
-
-- **Phase 2:** Automated scan sweep, 3D RSSI heatmap (Azimuth x Elevation x dBm)
-- **Phase 3:** Lock/follow mode — track strongest signal, rescan on loss
-- **Phase 4:** BN-880 GPS + compass for true heading, encoder for azimuth feedback
-- **Phase 5:** Camera stream, audio capture, battery power, touch-pin wake
+- No hardware test of any kind. Expect tuning work on the motor control in particular.
+- The motor screw pattern and three board outlines in the 3D model are assumed; measure the parts before printing.
+- Compass, IMU, turn scan, microSD logging and the bearing-crossing tool are written but untried on hardware: see [`docs/navigation.md`](docs/navigation.md). Without them the north offset is typed in by hand.
+- Researched but not implemented: a spectrum mode using the ESP-SDR firmware on the same sensor board, steering by existing satellite-tracking software, and sharpening maps by removing the antenna's beam shape. See the roadmap in the design document.

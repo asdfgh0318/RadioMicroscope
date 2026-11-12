@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RadioMicroscope</title>
+<style>
+:root{--bg:#0b0d12;--panel:#151923;--line:#252b3a;--text:#e6e8ee;--dim:#8b93a7;--acc:#2dd4bf;--warn:#f59e0b;--bad:#ef4444}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font:14px/1.4 system-ui,sans-serif;max-width:760px;margin:0 auto;padding:10px 16px}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+h1{font-size:15px;letter-spacing:2px;color:var(--acc)}
+h2{font-size:11px;letter-spacing:1.5px;color:var(--dim);margin-bottom:8px;font-weight:600}
+section{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:10px}
+.pills span{font-size:12px;color:var(--dim);margin-left:10px}
+.pills span::before{content:'';display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--bad);margin-right:5px}
+.pills span.ok::before{background:var(--acc)}
+.big{display:flex;gap:18px;flex-wrap:wrap;align-items:baseline}
+.big div{min-width:70px}
+.big b{font:600 22px ui-monospace,monospace;color:var(--acc);font-variant-numeric:tabular-nums}
+.big small{display:block;font-size:10px;letter-spacing:1px;color:var(--dim)}
+canvas{width:100%;display:block;border-radius:4px;cursor:crosshair;background:#000;image-rendering:pixelated}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
+button{background:var(--line);color:var(--text);border:1px solid #333b4f;border-radius:6px;padding:9px 14px;font:inherit;cursor:pointer;min-height:40px}
+button:active{background:#333b4f}
+button.go{background:#0f766e;border-color:#14b8a6}
+button.stop{background:#7f1d1d;border-color:var(--bad)}
+label{font-size:12px;color:var(--dim)}
+input[type=number]{width:68px;background:var(--bg);border:1px solid var(--line);color:var(--text);border-radius:5px;padding:6px;font:13px ui-monospace,monospace}
+.jog{display:grid;grid-template-columns:repeat(3,48px);gap:6px}
+.jog button{padding:0;height:44px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td,th{padding:6px 4px;text-align:left;border-bottom:1px solid var(--line)}
+th{font-size:10px;letter-spacing:1px;color:var(--dim);font-weight:600}
+td.n{font-family:ui-monospace,monospace;text-align:right}
+tr.sel td{color:var(--acc)}
+tbody tr{cursor:pointer}
+.scroll{max-height:260px;overflow:auto}
+.note{font-size:12px;color:var(--dim);margin-top:6px}
+#cam{width:100%;border-radius:4px;display:none;margin-top:8px}
+.legend{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);margin-top:6px}
+.legend i{flex:1;height:8px;border-radius:4px}
+</style>
+</head>
+<body>
+<header><h1>RADIOMICROSCOPE</h1>
+<div class="pills"><span id="p-link">link</span><span id="p-servo">motors</span><span id="p-sensor">sensor</span></div></header>
+
+<section>
+<div class="big">
+<div><small>MODE</small><b id="mode">--</b></div>
+<div><small>AZIMUTH</small><b id="az">--</b></div>
+<div><small>ELEVATION</small><b id="el">--</b></div>
+<div><small>SIGNAL dBm</small><b id="rssi">--</b></div>
+<div><small>FRAMES</small><b id="frames">--</b></div>
+</div>
+<div class="note" id="info"></div>
+</section>
+
+<section>
+<h2>SKY MAP &mdash; tap to point there</h2>
+<canvas id="map" width="720" height="230"></canvas>
+<div class="legend"><span id="lo">-95</span><i id="ramp"></i><span id="hi">-40 dBm</span></div>
+<div class="row">
+<button class="go" id="b-scan">Scan</button>
+<button class="go" id="b-scantrack">Scan, then track</button>
+<button id="b-track">Track</button>
+<button id="b-turn" hidden>Turn scan</button>
+<button class="stop" id="b-stop">Stop</button>
+<button id="b-csv">Save CSV</button>
+</div>
+<div class="row">
+<label>step&deg; <input type="number" id="step" value="10" min="2" max="30"></label>
+<label>el min <input type="number" id="elmin" value="0" min="-15" max="95"></label>
+<label>el max <input type="number" id="elmax" value="90" min="-15" max="95"></label>
+</div>
+<div class="note" id="scaninfo"></div>
+</section>
+
+<section>
+<h2>TARGET &mdash; survey, then tap a transmitter</h2>
+<div class="row" style="margin-top:0"><button id="b-survey">Survey all channels</button><span class="note" id="tgt"></span></div>
+<div class="scroll"><table><thead><tr><th>NAME</th><th>ADDRESS</th><th>CH</th><th>dBm</th></tr></thead><tbody id="stations"></tbody></table></div>
+</section>
+
+<section>
+<h2>MANUAL</h2>
+<div class="row" style="margin-top:0;align-items:flex-start">
+<div class="jog">
+<span></span><button data-jog="0,5">&#9650;</button><span></span>
+<button data-jog="-5,0">&#9664;</button><button id="b-free" title="release the motors">free</button><button data-jog="5,0">&#9654;</button>
+<span></span><button data-jog="0,-5">&#9660;</button><span></span>
+</div>
+<div>
+<div class="row" style="margin-top:0">
+<label>north offset&deg; <input type="number" id="north" value="0"></label>
+<label>beamwidth&deg; <input type="number" id="beam" value="40"></label>
+<label>dwell ms <input type="number" id="period" value="200" min="20" max="250"></label>
+<button id="b-set">Apply</button>
+<button id="b-calmag" hidden>Calibrate compass</button>
+</div>
+<div class="row"><label><input type="checkbox" id="camon"> boresight camera</label></div>
+</div>
+</div>
+<img id="cam" alt="camera view">
+</section>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const LO = -95, HI = -40, CELL = 5, EL0 = -15;
+let ws, S = {}, W = 72, H = 23, map = null, settingsShown = false, stations = [], hadNav = false;
+
+// Dark-to-bright single-hue ramp: brightness carries the value.
+function colour(dbm) {
+  const t = Math.max(0, Math.min(1, (dbm - LO) / (HI - LO)));
+  const h = 200 - 150 * t, l = 12 + 58 * t;
+  return `hsl(${h} 85% ${l}%)`;
+}
+$('ramp').style.background = `linear-gradient(90deg,${[0, .25, .5, .75, 1].map(t => colour(LO + t * (HI - LO))).join(',')})`;
+
+function send(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
+
+function connect() {
+  ws = new WebSocket(`ws://${location.host}/ws`);
+  ws.binaryType = 'arraybuffer';
+  ws.onopen = () => $('p-link').className = 'ok';
+  ws.onclose = () => { $('p-link').className = ''; setTimeout(connect, 1000); };
+  ws.onmessage = e => {
+    if (typeof e.data === 'string') {
+      const m = JSON.parse(e.data);
+      if (m.t === 's') { S = m; showStatus(); draw(); }
+      else if (m.t === 'st') { stations = m.list; showStations(); }
+    } else {
+      const b = new Uint8Array(e.data);
+      if (b[0] === 77) { W = b[1]; H = b[2]; map = new Int8Array(e.data.slice(3)); draw(); }
+    }
+  };
+}
+
+const trueAz = az => ((az + (S.north || 0)) % 360 + 360) % 360;
+// The map and the peak carry their own offset: zero after a turn scan.
+const mapAz = az => ((az + (S.mapNorth || 0)) % 360 + 360) % 360;
+// Head angles and map columns differ after a turn scan, whose map is in
+// world directions: shift by the difference of the two offsets.
+const wrap180 = a => ((a + 180) % 360 + 360) % 360 - 180;
+const headToMap = az => wrap180(az + (S.north || 0) - (S.mapNorth || 0));
+const mapToHead = az => wrap180(az - (S.north || 0) + (S.mapNorth || 0));
+
+function showStatus() {
+  $('p-servo').className = S.servo ? 'ok' : '';
+  $('p-sensor').className = S.sensor ? 'ok' : '';
+  $('mode').textContent = S.mode;
+  $('az').textContent = trueAz(S.az).toFixed(1);
+  $('el').textContent = S.el.toFixed(1);
+  $('rssi').textContent = S.rssi === undefined ? '--' : S.rssi;
+  $('frames').textContent = S.frames === undefined ? '--' : S.frames;
+  const bits = [];
+  if (S.volt) bits.push(`${S.volt.toFixed(1)} V`, `${S.temp} °C`);
+  bits.push(S.rx || (S.g5 ? '2.4 + 5 GHz' : '2.4 GHz'));
+  if (!S.torque) bits.push('motors free');
+  if (S.nav !== undefined) {
+    $('b-turn').hidden = false; $('b-calmag').hidden = false;
+    // With a working compass north is measured; the box then only shows it.
+    // When the compass drops out the box goes back to the typed offset, so
+    // that Apply cannot save a measured value as if it had been typed.
+    if (S.nav !== hadNav) { $('north').value = Math.round(S.north); hadNav = S.nav; }
+    $('north').disabled = !!S.nav;
+    if (S.nav) $('north').value = Math.round(S.north);
+    if (S.cal) bits.push('calibrating compass: turn a full circle');
+    else if (S.nav) bits.push(`heading ${S.hdg}°, pitch ${S.pitch}°, roll ${S.roll}°`);
+    else bits.push('compass not calibrated');
+  }
+  if (S.rows !== undefined) bits.push(`${S.rows} rows logged`);
+  if (S.lat !== undefined) bits.push(`${S.lat.toFixed(5)}, ${S.lon.toFixed(5)} (${S.sats} sats)`);
+  $('info').textContent = bits.join(' · ');
+  $('tgt').textContent = S.tgt ? `target ${S.tgt} on channel ${S.ch}` : 'no target selected';
+  let si = '';
+  if (S.mode === 'scan') si = (S.search === 1 ? 'signal lost, searching nearby: ' : S.search === 2 ? 'signal lost, searching the whole sky: ' : 'scanning: ') + `point ${S.done} of ${S.total}`;
+  else if (S.mode === 'turn') si = `turn scan: ${S.turn}% of the circle covered, ${S.bearings} bearings logged`;
+  if (S.mode !== 'scan' && S.pAz !== undefined) si += `${si ? ' · ' : ''}peak ${S.pDbm} dBm at azimuth ${mapAz(S.pAz).toFixed(0)}°, elevation ${S.pEl.toFixed(0)}°`;
+  $('scaninfo').textContent = si;
+  if (!settingsShown) {
+    $('north').value = S.north; $('beam').value = S.beam; $('period').value = S.period;
+    settingsShown = true;
+  }
+}
+
+function showStations() {
+  const body = $('stations');
+  body.textContent = '';
+  stations.sort((a, b) => b.rssi - a.rssi).forEach(s => {
+    const tr = document.createElement('tr');
+    if (s.mac === S.tgt) tr.className = 'sel';
+    // textContent, never innerHTML: network names come from strangers.
+    [[s.ssid || (s.ap ? '(hidden)' : '(device)'), ''], [s.mac, 'n'], [s.ch, 'n'], [s.rssi, 'n']].forEach(([v, c]) => {
+      const td = document.createElement('td');
+      td.textContent = v; td.className = c;
+      tr.appendChild(td);
+    });
+    tr.onclick = () => send({cmd: 'target', mac: s.mac, ch: s.ch});
+    body.appendChild(tr);
+  });
+}
+
+// Map canvas: x = azimuth -180..180 (mechanical), y = elevation, up = higher.
+function draw() {
+  const c = $('map'), g = c.getContext('2d');
+  const cw = c.width / W, ch = c.height / H;
+  g.fillStyle = '#05060a';
+  g.fillRect(0, 0, c.width, c.height);
+  if (map) for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    const v = map[j * W + i];
+    if (v === -128) continue;
+    g.fillStyle = colour(v);
+    // Cell i is centred on azimuth -180 + 5*i, so it straddles the left edge when i = 0.
+    g.fillRect((i - .5) * cw, (H - 1 - j) * ch, cw + .5, ch + .5);
+    if (i === 0) g.fillRect((W - .5) * cw, (H - 1 - j) * ch, cw, ch + .5);
+  }
+  const xy = (az, el) => [(az + 180) / CELL * cw, (H - .5 - (el - EL0) / CELL) * ch];
+  g.strokeStyle = 'rgba(255,255,255,.25)'; g.lineWidth = 1;
+  let [, y0] = xy(0, 0);
+  g.beginPath(); g.moveTo(0, y0); g.lineTo(c.width, y0); g.stroke();  // horizon
+  g.fillStyle = 'rgba(255,255,255,.55)'; g.font = '11px system-ui';
+  for (let az = -180; az < 180; az += 45) g.fillText(mapAz(az).toFixed(0) + '°', xy(az, 0)[0] + 3, c.height - 4);
+  if (S.pAz !== undefined) {
+    const [x, y] = xy(S.pAz, S.pEl);
+    g.strokeStyle = '#fff'; g.lineWidth = 2;
+    g.beginPath(); g.arc(x, y, 7, 0, 7); g.stroke();
+  }
+  if (S.az !== undefined) {
+    const [x, y] = xy(headToMap(S.az), S.el);
+    g.strokeStyle = '#f59e0b'; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(x - 9, y); g.lineTo(x + 9, y); g.moveTo(x, y - 9); g.lineTo(x, y + 9); g.stroke();
+  }
+}
+
+$('map').onclick = e => {
+  const r = e.target.getBoundingClientRect();
+  const az = (e.clientX - r.left) / r.width * W * CELL - 180;
+  const el = (H - .5 - (e.clientY - r.top) / r.height * H) * CELL + EL0;
+  send({cmd: 'goto', az: mapToHead(az), el});
+};
+
+function scan(track) {
+  send({cmd: 'scan', step: +$('step').value, elMin: +$('elmin').value, elMax: +$('elmax').value, track});
+}
+$('b-scan').onclick = () => scan(false);
+$('b-scantrack').onclick = () => scan(true);
+$('b-track').onclick = () => send({cmd: 'track'});
+$('b-turn').onclick = () => send({cmd: 'turn'});
+$('b-calmag').onclick = () => send({cmd: 'calmag'});
+$('b-stop').onclick = () => send({cmd: 'stop'});
+$('b-survey').onclick = () => send({cmd: 'survey'});
+$('b-free').onclick = () => send({cmd: 'torque', on: false});
+$('b-set').onclick = () => send({cmd: 'set', north: +$('north').value, beam: +$('beam').value, period: +$('period').value});
+document.querySelectorAll('[data-jog]').forEach(b => b.onclick = () => {
+  const [daz, del] = b.dataset.jog.split(',').map(Number);
+  send({cmd: 'jog', daz, del});
+});
+
+$('b-csv').onclick = () => {
+  if (!map) return;
+  let out = 'azimuth_true_deg,azimuth_mech_deg,elevation_deg,dbm\n';
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    const v = map[j * W + i];
+    if (v !== -128) out += `${mapAz(-180 + CELL * i)},${mapToHead(-180 + CELL * i)},${EL0 + CELL * j},${v}\n`;
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([out], {type: 'text/csv'}));
+  a.download = `radiomicroscope-${(S.tgt || 'map').replace(/:/g, '')}.csv`;
+  a.click();
+};
+
+// Camera: fetch a new still when the last one has loaded, so a slow link
+// is never asked for more than it can carry.
+const cam = $('cam');
+function nextFrame() { if ($('camon').checked) cam.src = '/snap.jpg?' + Date.now(); }
+cam.onload = () => setTimeout(nextFrame, 150);
+cam.onerror = () => setTimeout(nextFrame, 2000);
+$('camon').onchange = e => { cam.style.display = e.target.checked ? 'block' : 'none'; nextFrame(); };
+
+connect();
+draw();
+</script>
+</body>
+</html>

@@ -1,0 +1,141 @@
+{
+ "desk": {
+  "scad": "cad/radiomicroscope.scad",
+  "out": "build/model.html",
+  "stl": "cad/stl",
+  "title": "RadioMicroscope Head Model",
+  "heading": "RadioMicroscope head",
+  "lede": "Desk build: brushless pan/tilt head for a 2.4 GHz patch antenna about 90 × 80 mm. Drag to turn the view, scroll or pinch to zoom, and use the sliders to point the antenna.",
+  "legend": [
+   [
+    "print",
+    "Printed parts",
+    "base tub and lid, fork yoke, antenna cradle"
+   ],
+   [
+    "rotor",
+    "Gimbal motors",
+    "two, GM3506 size: pan under the deck (mounted upside down), tilt on the right arm"
+   ],
+   [
+    "antenna",
+    "Antenna",
+    "patch about 90 × 80 × 10 mm, connector through the cradle plate"
+   ],
+   [
+    "pcbdark",
+    "Controller boards",
+    "sensor radio and camera brain behind the antenna; motor controller on the left arm"
+   ],
+   [
+    "pcbblue",
+    "Power and driver boards",
+    "two motor drivers on the left arm, 5 V converter on the deck, USB-C trigger in the base"
+   ],
+   [
+    "metal",
+    "Metal",
+    "connectors, radio shields, pivot screw"
+   ]
+  ],
+  "notes": [
+   "The pan motor is mounted upside down, so its fixed half rides on the yoke. Only the two power wires pass down through its hollow shaft; every signal wire stays on the moving part.",
+   "The cradle hangs between two arms: the tilt motor drives it on one side and a pivot screw carries it on the other. The antenna sits just ahead of the tilt axis and the boards just behind it, so the head is close to balanced; two screw holes take a small trim weight.",
+   "Bought parts are drawn from their published outer dimensions. The motor's screw pattern and the outlines of the motor controller, driver and converter boards are assumed and must be measured before printing."
+  ]
+ },
+ "palm58": {
+  "scad": "cad/palm58.scad",
+  "out": "build/model-palm58.html",
+  "stl": "cad/stl-palm58",
+  "title": "RadioMicroscope Handheld 5.8",
+  "heading": "RadioMicroscope handheld 5.8 GHz",
+  "lede": "Carried version for analog drone video: a small 5.8 GHz patch and an RX5808 video receiver on a brushless head, on a grip. Drag to turn the view, scroll or pinch to zoom, and use the sliders to point the antenna.",
+  "legend": [
+   [
+    "print",
+    "Printed parts",
+    "grip, base tub and lid, fork yoke, antenna cradle"
+   ],
+   [
+    "rotor",
+    "Gimbal motors",
+    "two, GM2804 size (35 × 25 mm)"
+   ],
+   [
+    "antenna",
+    "Antenna",
+    "5.8 GHz circular patch, 40 × 22 mm, 8 g"
+   ],
+   [
+    "pcb",
+    "Video receiver",
+    "RX5808 module behind the antenna; its video output goes to the goggles"
+   ],
+   [
+    "pcbdark",
+    "Controller boards",
+    "brain on the deck, motor controller on the left arm"
+   ],
+   [
+    "pcbblue",
+    "Power, driver and sensor boards",
+    "two motor drivers and the 5 V converter on the deck, USB-C trigger in the base, compass and IMU at the bottom of the grip"
+   ]
+  ],
+  "notes": [
+   "Same mechanism as the desk build, scaled around a 40 mm antenna. The two gimbal motors now set the size: each is 35 mm across.",
+   "The grip screws to the tripod thread in the base. The compass and IMU sit at its lower end, about 13 cm from the motors, so their magnets do not disturb the compass; with them the head keeps facing the same way while the hand turns.",
+   "The receiver's wires cross the tilt axis in a loose loop; tilt only travels 110 degrees. The compass and IMU wires and the power cable run up through the grip and the pan motor's hollow shaft.",
+   "The antenna thickness, the motor screw pattern and encoder housing, and the board outlines are assumed and must be measured before printing."
+  ],
+  "extra_parts": [
+   "p_grip"
+  ]
+ },
+ "longrange24": {
+  "scad": "cad/longrange24.scad",
+  "out": "build/model-longrange24.html",
+  "stl": "cad/stl-longrange24",
+  "title": "RadioMicroscope Long Range 2.4",
+  "heading": "RadioMicroscope long range 2.4 GHz",
+  "lede": "For locking onto a distant Wi-Fi network: a 16 dBi panel antenna on larger brushless motors. Drag to turn the view, scroll or pinch to zoom, and use the sliders to point the antenna.",
+  "legend": [
+   [
+    "print",
+    "Printed parts",
+    "base tub and lid, fork yoke, antenna cradle"
+   ],
+   [
+    "rotor",
+    "Gimbal motors",
+    "two, GM4108H size (47 × 32 mm)"
+   ],
+   [
+    "antenna",
+    "Antenna",
+    "2.4 GHz 16 dBi panel in its enclosure, 194 × 179 × 78 mm, 357 g"
+   ],
+   [
+    "pcbdark",
+    "Controller boards",
+    "sensor radio and camera brain behind the antenna; motor controller on the left arm"
+   ],
+   [
+    "pcbblue",
+    "Power and driver boards",
+    "two motor drivers on the left arm, 5 V converter on the deck, USB-C trigger in the base"
+   ],
+   [
+    "metal",
+    "Metal",
+    "connectors, radio shields, pivot screw"
+   ]
+  ],
+  "notes": [
+   "Same mechanism as the desk build. The antenna is set back so that its middle lies on the tilt axis: at 357 g it would otherwise load the tilt motor all the time.",
+   "The antenna sets the size. Its beam is about 28° by 23°, less than half the width of the small patch on the desk build.",
+   "The motor screw pattern and encoder housing and the board outlines are assumed and must be measured before printing. The fork arms are long for a printed part at this size; treat this model as a layout, not a finished structure."
+  ]
+ }
+}
