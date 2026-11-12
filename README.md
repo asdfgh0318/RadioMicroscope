@@ -13,6 +13,12 @@ A desk-sized instrument that points a directional antenna with a two-axis head, 
 - **Track**: holds the antenna on the transmitter by probing around it; if the signal is lost it scans again and locks on again.
 - **Look**: serves a control page over its own Wi-Fi network, with the map, a still camera view along the antenna, manual pointing and CSV export.
 
+### The control page
+
+<p align="center"><img src="docs/img/control-page.png" width="640" alt="The control page: status bar, sky map, scan and track buttons, transmitter list and manual pointing"></p>
+
+Served by the instrument over its own Wi-Fi network. Shown here opened from the file with no instrument connected, so the map and readings are empty.
+
 ## How it is built
 
 | Part | What | Why |
@@ -33,7 +39,7 @@ The head is about 154 mm wide and 144 mm tall on a 120 mm base. See [`docs/desig
 | <img src="docs/img/desk.png" width="260" alt="Desktop model"> | <img src="docs/img/handheld.png" width="260" alt="Handheld model on a grip"> | <img src="docs/img/longrange.png" width="260" alt="Long-range model with a large panel antenna"> |
 | 154 × 144 mm, 120 mm base | 81 × 104 mm plus a 115 mm grip | 269 × 262 mm, 160 mm base |
 
-The pictures are renders of the OpenSCAD model in `cad/`, not photographs; nothing has been built yet. An interactive view of each is produced by `tools/build_viewer.py` into `build/`.
+The pictures are renders of the OpenSCAD model in `cad/`, not photographs; nothing has been built yet. Interactive 3D views (drag to turn, sliders to point the antenna) are in `docs/view/`: download one and open it in a browser. They are snapshots from 2026-11-12, built by `tools/build_viewer.py`.
 
 **Current focus: the desktop build.** It is the one to order and assemble first; [`docs/build-desktop.md`](docs/build-desktop.md) is the step-by-step guide.
 
